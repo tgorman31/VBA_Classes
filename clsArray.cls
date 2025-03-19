@@ -7,6 +7,7 @@ Attribute VB_GlobalNameSpace = False
 Attribute VB_Creatable = False
 Attribute VB_PredeclaredId = False
 Attribute VB_Exposed = False
+
 Option Explicit
 '@IgnoreModule ArgumentWithIncompatibleObjectType, ModuleWithoutFolder
 Private anArray() As Variant
@@ -87,13 +88,12 @@ Property Get MaxValue() As Long 'Property to get Max of 1D Array
 End Property
 
 
-
 Property Get ArrColumn(index As Integer) As Variant() 'Property to split out Column of array by index
     ArrColumn = Application.Transpose(Application.Transpose(Application.index(anArray, 0, index)))
 End Property
 
 Property Get ArrColumns(index() As Variant) As Variant() 'Property to split out ColumnS of array by index
-    
+
     Dim temp() as Variant
     Dim rowIndices() as Variant
 
@@ -109,13 +109,18 @@ Property Get ArrColumns(index() As Variant) As Variant() 'Property to split out 
     ArrColumns = Application.Transpose(Application.Transpose(Application.index(anArray, rowIndices , index)))
 End Property
 
+
 Property Get ArrRow(index As Integer) As Variant() 'Property to split out Row of array by index
     ArrRow = Application.Transpose(Application.Transpose(Application.index(anArray, index, 0)))
 End Property
 
 Property Get ArrSize(Optional dimension As Long) As Long
     dimension = IIf(dimension = Empty, 1, dimension)
+    On Error GoTo Err0
     ArrSize = UBound(anArray, dimension)
+    Exit Property
+Err0:
+    ArrSize = 0
 End Property
 
 Public Sub EraseArr() 'Sub to Erase array
@@ -200,9 +205,6 @@ Public Function RemoveColumns(ParamArray columnIndices() As Variant) As Variant(
         NumRows = UBound(anArray, 1) - LBound(anArray, 1) + 1
         numCols = UBound(anArray, 2) - LBound(anArray, 2) + 1
 
-        Dim tempArr() as Variant
-        ReDim tempArr(1 to ArrSize(1), )
-
         If numCols >= 1 Then
             ' Create an array to store the column indices to be removed
             Dim columnsToRemove() As Boolean
@@ -263,22 +265,23 @@ Public Function RemoveColumns(ParamArray columnIndices() As Variant) As Variant(
     RemoveColumns = anArray
 End Function
 
-Public Function QuickFilter(col_index As Long, filter_value As Variant, Optional eq As String) As Variant()
+Public Function QuickFilter(column_index As Long, filter_value As Variant, Optional eq As String) As Variant()
     Dim r As Long
     Dim Count As Long
     Dim Indices As Variant
+    On Error GoTo Err
     ReDim Indices(LBound(anArray, 1) To UBound(anArray, 1))
     Count = LBound(anArray, 1) - 1
     If eq = "N" Then
         For r = LBound(anArray, 1) To UBound(anArray, 1)
-            If anArray(r, col_index) <> filter_value Then
+            If anArray(r, column_index) <> filter_value Then
                 Count = Count + 1
                 Indices(Count) = r
             End If
         Next
     Else
         For r = LBound(anArray, 1) To UBound(anArray, 1)
-            If anArray(r, col_index) = filter_value Then
+            If anArray(r, column_index) = filter_value Then
                 Count = Count + 1
                 Indices(Count) = r
             End If
@@ -301,12 +304,18 @@ Public Function QuickFilter(col_index As Long, filter_value As Variant, Optional
     Else
         QuickFilter = Array()
     End If
+Exit Function
+
+Err:
+    QuickFilter = anArray
+
 End Function
 
 Public Function ArraySearch(lookup As Variant, lookup_col As Long, return_col As Long, Optional blank_value As String, Optional match_mode As String = "Exact") As Variant
     Dim r As Long
     Dim Count As Long
     Dim Indices As Variant
+    On Error GoTo Err
     ReDim Indices(LBound(anArray, 1) To UBound(anArray, 1))
 
     If match_mode = "Exact" Then
@@ -329,12 +338,18 @@ Public Function ArraySearch(lookup As Variant, lookup_col As Long, return_col As
             End If
         Next
     End If
+Exit Function
+
+Err:
+    ArraySearch = blank_value
+
 End Function
 
 Public Function Array_Index(lookup As Variant, lookup_col As Long, Optional blank_value As String, Optional match_mode As String = "Exact") As Variant
     Dim r As Long
     Dim Count As Long
     Dim Indices As Variant
+    On Error GoTo Err
     ReDim Indices(LBound(anArray, 1) To UBound(anArray, 1))
 
     If match_mode = "Exact" Then
@@ -357,6 +372,11 @@ Public Function Array_Index(lookup As Variant, lookup_col As Long, Optional blan
             End If
         Next
     End If
+Exit Function
+
+Err:
+    Array_Index = blank_value
+    
 End Function
 
 Function JoinArrays(newRows As Variant) As Variant()
@@ -434,30 +454,9 @@ Sub JoinColumn(newColumns As Variant)
             Member2D(r, relativeColNum) = newColumns(r, c)
         Next
     Next
-    
-End Sub
-
-Sub RemoveColumnssss(indices() as Variant) ' Not finished
-    Dim temp() as Variant
-
-    Redim temp(1 to ArrSize(2))
-
-' Create an array of all indices
-    Dim i as Long
-
-    For i = 1 to ArrSize(1)
-
-        temp(i) = i
-    Next
-
-' Get the size of the indices array
-' Create a temp array of the size of the indices array
-
-' go through the all indices array
-' Check if the current array index is on the supplied indices array
-' If not 
 
 End Sub
+
 
 ' Method to set a worksheet range with the values in anArray
 Public Sub SetRange(ws As Worksheet, topLeftCell As String, Optional clear_cells As Boolean = False, Optional additonal_rows As Long = 0)
@@ -476,7 +475,7 @@ Public Sub SetRange(ws As Worksheet, topLeftCell As String, Optional clear_cells
         Dim oldRange As Range: Set oldRange = ws.Range(topLeftCell).Resize(rowCount + additonal_rows, columnCount)
         oldRange.ClearContents
     End If
-     
+    
     ' Set the range to the values in anArray
     targetRange.value = anArray
 End Sub
@@ -508,4 +507,110 @@ Public Sub SetListObjectData(listObject As listObject)
     ' Set the range with the internal array values
     targetRange.value = anArray
 End Sub
+
+Public Function GetUniqueValues(columnIndex As Long) As Variant()
+    Dim colArray As Variant
+    Dim uniqueDict As Object
+    Dim i As Long
+    Dim result() As Variant
+    Dim key As Variant
+    
+    ' Extract the entire column using ArrColumn property
+    colArray = Me.ArrColumn(columnIndex)
+    
+    ' Create dictionary for uniqueness check
+    Set uniqueDict = CreateObject("Scripting.Dictionary")
+    
+    ' Loop through the column values and store unique ones
+    For i = LBound(colArray) To UBound(colArray)
+        If Not uniqueDict.exists(colArray(i)) Then
+            uniqueDict.Add colArray(i), colArray(i)
+        End If
+    Next i
+    
+    ' Convert dictionary keys to array
+    result = uniqueDict.keys
+    
+    ' Return unique values
+    GetUniqueValues = result
+End Function
+
+
+Public Function Pivot_Array(group_cols As Variant, column_values As Variant, column_col As Long, sum_col As Long) As Variant()
+    Dim uniqueGroups As Object
+    Dim row As Long, col As Long
+    Dim groupKey As String
+    Dim resultArray() As Variant
+    Dim resultRow As Long
+    Dim key As Variant
+    Dim i As Integer
+    Dim numGroupCols As Integer
+    Dim colIndex As Integer
+    Dim sumValue As Variant
+    Dim columnValue As Variant
+
+    ' Create dictionary to store grouped values
+    Set uniqueGroups = CreateObject("Scripting.Dictionary")
+    
+    ' Determine number of grouping columns
+    numGroupCols = UBound(group_cols) - LBound(group_cols) + 1
+    
+    ' Loop through the array and aggregate data
+    For row = LBound(anArray, 1) To UBound(anArray, 1)
+        ' Create a unique key for grouping columns
+        groupKey = ""
+        For col = LBound(group_cols) To UBound(group_cols)
+            groupKey = groupKey & anArray(row, group_cols(col)) & "_"
+        Next col
+        groupKey = Left(groupKey, Len(groupKey) - 1) ' Remove trailing "_"
+        
+        ' Get column value and sum value
+        columnValue = anArray(row, column_col)
+        sumValue = anArray(row, sum_col)
+        
+        ' Initialize if key does not exist
+        If Not uniqueGroups.exists(groupKey) Then
+            ReDim tempArray(1 To numGroupCols + UBound(column_values) - LBound(column_values) + 1)
+            ' Store grouping column values
+            For i = 1 To numGroupCols
+                tempArray(i) = anArray(row, group_cols(LBound(group_cols) + i - 1))
+            Next i
+            ' Initialize column values to 0
+            For i = numGroupCols + 1 To numGroupCols + UBound(column_values) - LBound(column_values) + 1
+                tempArray(i) = 0
+            Next i
+            uniqueGroups.Add groupKey, tempArray
+        End If
+        
+        ' Retrieve the array, modify it, and store it back
+        tempArray = uniqueGroups(groupKey)
+        ' Find the correct column index based on provided column values
+        For i = LBound(column_values) To UBound(column_values)
+            If columnValue = column_values(i) Then
+                colIndex = numGroupCols + i - LBound(column_values) + 1
+                tempArray(colIndex) = tempArray(colIndex) + sumValue
+                Exit For
+            End If
+        Next i
+        
+        ' Store the updated array back into the dictionary
+        uniqueGroups(groupKey) = tempArray
+        
+    Next row
+    
+    ' Create result array without headers
+    resultRow = 1
+    ReDim resultArray(1 To uniqueGroups.Count, 1 To numGroupCols + UBound(column_values) - LBound(column_values) + 1)
+
+    ' Populate result array
+    For Each key In uniqueGroups.keys
+        For i = 1 To numGroupCols + UBound(column_values) - LBound(column_values) + 1
+            resultArray(resultRow, i) = uniqueGroups(key)(i)
+        Next i
+        resultRow = resultRow + 1
+    Next key
+
+    ' Return the pivoted result
+    Pivot_Array = resultArray
+End Function
 
