@@ -87,32 +87,64 @@ Property Get MaxValue() As Long 'Property to get Max of 1D Array
     MaxValue = Application.Max(anArray)
 End Property
 
+'— flatten a 2D 1×N or N×1 array into a 1D (1 To N) array —
+Private Function Flatten2Dto1D(arr2D As Variant) As Variant
+    Dim r As Long, c As Long
+    r = UBound(arr2D, 1)
+    On Error Resume Next
+        c = UBound(arr2D, 2)
+    On Error GoTo 0
 
-Property Get ArrColumn(index As Integer) As Variant() 'Property to split out Column of array by index
-    ArrColumn = Application.Transpose(Application.Transpose(Application.index(anArray, 0, index)))
+    Dim out() As Variant
+    If r = 1 Then
+        ' row vector 1×c
+        ReDim out(1 To c)
+        Dim j As Long
+        For j = 1 To c
+            out(j) = arr2D(1, j)
+        Next j
+    Else
+        ' column vector r×1
+        ReDim out(1 To r)
+        Dim i As Long
+        For i = 1 To r
+            out(i) = arr2D(i, 1)
+        Next i
+    End If
+
+    Flatten2Dto1D = out
+End Function
+
+
+Property Get ArrColumn(index As Long) As Variant()
+    Dim col2D As Variant
+    col2D = Application.Index(anArray, 0, index)    ' returns an r×1 array
+    ArrColumn = Flatten2Dto1D(col2D)
 End Property
 
-Property Get ArrColumns(index() As Variant) As Variant() 'Property to split out ColumnS of array by index
-
-    Dim temp() as Variant
-    Dim rowIndices() as Variant
-
-    Redim temp(1 to ArrSize(1))
-
-    Dim i as Long
-    For i = 1 to ArrSize(1)
-        temp(i) = i
-    Next
-
-    rowIndices = Application.Transpose(temp)
-
-    ArrColumns = Application.Transpose(Application.Transpose(Application.index(anArray, rowIndices , index)))
+Property Get ArrRow(index As Long) As Variant()
+    Dim row2D As Variant
+    row2D = Application.index(anArray, index, 0)    ' returns a 1×c array
+    ArrRow = row2D
 End Property
 
 
-Property Get ArrRow(index As Integer) As Variant() 'Property to split out Row of array by index
-    ArrRow = Application.Transpose(Application.Transpose(Application.index(anArray, index, 0)))
+Property Get ArrColumns(colIdx() As Variant) As Variant()
+    Dim r As Long: r = UBound(anArray, 1)
+    Dim c As Long: c = UBound(colIdx)
+    Dim out() As Variant
+    ReDim out(1 To r, 1 To c+1)
+
+    Dim i As Long, j As Long
+    For j = 1 To c + 1
+        For i = 1 To r
+            out(i, j) = anArray(i, colIdx(j-1))
+        Next i
+    Next j
+
+    ArrColumns = out
 End Property
+
 
 Property Get ArrSize(Optional dimension As Long) As Long
     dimension = IIf(dimension = Empty, 1, dimension)
