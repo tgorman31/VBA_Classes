@@ -119,7 +119,11 @@ End Function
 Property Get ArrColumn(index As Long) As Variant()
     Dim col2D As Variant
     col2D = Application.Index(anArray, 0, index)    ' returns an r×1 array
-    ArrColumn = Flatten2Dto1D(col2D)
+    If LBound(col2D,1) = UBound(col2D,1) Then
+        ArrColumn = col2D
+    Else
+        ArrColumn = Flatten2Dto1D(col2D)
+    End If
 End Property
 
 Property Get ArrRow(index As Long) As Variant()
